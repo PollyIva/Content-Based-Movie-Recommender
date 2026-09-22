@@ -368,6 +368,8 @@ button:hover {
     text-align: left;
     font-size: 0.85rem;
     vertical-align: top;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 #comparison-table th {
@@ -586,6 +588,8 @@ button:hover {
     text-align: left;
     font-size: 0.85rem;
     vertical-align: top;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 #norm-table th, #rank-table th, #longtail-table th {
@@ -597,12 +601,20 @@ button:hover {
 }
 
 #norm-table td:last-child,
-#rank-table td:nth-child(3),
+#rank-table td:nth-child(3) {
+    color: #27ae60;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+/* Long-tail columns contain "title (N ratings)" — let long titles wrap */
 #longtail-table td:nth-child(2),
 #longtail-table td:nth-child(4) {
     color: #27ae60;
     font-weight: bold;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 #rank-table td:nth-child(2) {
