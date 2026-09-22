@@ -24,19 +24,23 @@ const GENRE_DIMENSIONS = [
 async function loadData() {
     try {
         // 1) Load and parse movie data (u.item)
+        // u.item is encoded in Latin-1 (ISO-8859-1), so we cannot rely on
+        // response.text(), which decodes as UTF-8 and garbles accented
+        // characters (e.g. "Café", "Véronique"). Decode the raw bytes explicitly.
         const moviesResponse = await fetch('u.item');
         if (!moviesResponse.ok) {
             throw new Error(`Failed to load movie data (${moviesResponse.status})`);
         }
-        const moviesText = await moviesResponse.text();
+        const moviesText = new TextDecoder('latin1').decode(await moviesResponse.arrayBuffer());
         parseItemData(moviesText);
 
-        // 2) Load and parse rating data (u.data)
+        // 2) Load and parse rating data (u.data) — pure ASCII, but decode the
+        // same way for consistency
         const ratingsResponse = await fetch('u.data');
         if (!ratingsResponse.ok) {
             throw new Error(`Failed to load rating data (${ratingsResponse.status})`);
         }
-        const ratingsText = await ratingsResponse.text();
+        const ratingsText = new TextDecoder('latin1').decode(await ratingsResponse.arrayBuffer());
         parseRatingData(ratingsText);
     } catch (error) {
         console.error('Error loading data:', error);
