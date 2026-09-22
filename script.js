@@ -12,6 +12,8 @@ const STORAGE_WATCHED = 'movierec.watched';
 const STORAGE_HISTORY = 'movierec.historyOn';
 
 const BATCH_SIZE = 5; // number of recommendations shown per page
+const MOVIE_FIELD_COUNT = 3; // three type-ahead fields
+const MAX_SUGGESTIONS = 10; // max candidates shown while typing
 
 // Movies the user has liked so far (the "profile")
 let watchedMovies = [];
@@ -24,6 +26,9 @@ let batchStart = 0;
 
 // Whether watched movies are persisted to localStorage and reused next session
 let historyEnabled = true;
+
+// Selected movie id per field ('' means "None") — resolved from typed text or clicks
+const selectedMovieIds = ['', '', ''];
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -47,7 +52,7 @@ window.onload = async function () {
         setStatus('Loading movie data...');
         await loadData();
 
-        populateMovieSelects();
+        initMovieInputs();
         restoreHistoryState();
         renderAll();
 
@@ -59,28 +64,142 @@ window.onload = async function () {
 };
 
 // ---------------------------------------------------------------------------
-// UI: populate the three movie dropdowns (each starts with a "None" option)
+// UI: type-ahead movie search (combobox)
+// Each field is a text input whose dropdown lists movies matching the typed
+// text as you type. Clicking a suggestion (or Enter with a highlighted one)
+// stores the movie's id; an empty input means "None".
 // ---------------------------------------------------------------------------
-function populateMovieSelects() {
-    const sortedMovies = [...movies].sort((a, b) => a.title.localeCompare(b.title));
+function initMovieInputs() {
+    for (let i = 1; i <= MOVIE_FIELD_COUNT; i++) {
+        const input = document.getElementById(`movie-input-${i}`);
 
-    for (let i = 1; i <= 3; i++) {
-        const select = document.getElementById(`movie-select-${i}`);
-        select.innerHTML = '';
+        input.addEventListener('input', () => renderSuggestions(i));
+        input.addEventListener('focus', () => renderSuggestions(i));
+        input.addEventListener('keydown', event => handleSuggestionKeydown(event, i));
+    }
 
-        // "None" placeholder for optional fields
-        const noneOption = document.createElement('option');
-        noneOption.value = '';
-        noneOption.textContent = 'None';
-        select.appendChild(noneOption);
+    // Hide open suggestion lists when clicking anywhere outside the comboboxes
+    document.addEventListener('click', event => {
+        if (!event.target.closest('.combobox')) hideAllSuggestions();
+    });
+}
 
-        for (const movie of sortedMovies) {
-            const option = document.createElement('option');
-            option.value = movie.id;
-            option.textContent = movie.title;
-            select.appendChild(option);
+function renderSuggestions(fieldIndex) {
+    const input = document.getElementById(`movie-input-${fieldIndex}`);
+    const list = document.getElementById(`movie-list-${fieldIndex}`);
+    const query = input.value.trim().toLowerCase();
+
+    // Text changed, so any previously picked id no longer applies
+    selectedMovieIds[fieldIndex - 1] = '';
+
+    if (query === '') {
+        hideList(fieldIndex);
+        return;
+    }
+
+    const matches = [];
+    for (const movie of movies) {
+        if (movie.title.toLowerCase().includes(query)) {
+            matches.push(movie);
+            if (matches.length >= MAX_SUGGESTIONS) break;
         }
     }
+
+    list.innerHTML = '';
+    if (matches.length === 0) {
+        const noMatch = document.createElement('li');
+        noMatch.className = 'no-match';
+        noMatch.textContent = 'No matching films';
+        list.appendChild(noMatch);
+    } else {
+        matches.forEach((movie, index) => {
+            const item = document.createElement('li');
+            const title = document.createElement('span');
+            title.textContent = movie.title;
+            item.appendChild(title);
+
+            const year = document.createElement('small');
+            year.textContent = movie.genres.length ? ` · ${movie.genres.slice(0, 3).join(', ')}` : '';
+            item.appendChild(year);
+
+            item.dataset.id = movie.id;
+            if (index === 0) item.classList.add('is-active');
+            item.addEventListener('click', () => selectMovie(fieldIndex, movie));
+            list.appendChild(item);
+        });
+    }
+    list.hidden = false;
+}
+
+function selectMovie(fieldIndex, movie) {
+    selectedMovieIds[fieldIndex - 1] = String(movie.id);
+    const input = document.getElementById(`movie-input-${fieldIndex}`);
+    input.value = movie.title;
+    hideList(fieldIndex);
+}
+
+function handleSuggestionKeydown(event, fieldIndex) {
+    const list = document.getElementById(`movie-list-${fieldIndex}`);
+
+    if (list.hidden && (event.key === 'ArrowDown' || event.key === 'Enter')) {
+        renderSuggestions(fieldIndex);
+        return;
+    }
+    if (list.hidden) return;
+
+    const items = [...list.querySelectorAll('li:not(.no-match)')];
+    if (items.length === 0) {
+        if (event.key === 'Enter') { event.preventDefault(); hideList(fieldIndex); }
+        return;
+    }
+
+    const activeIndex = items.findIndex(item => item.classList.contains('is-active'));
+
+    if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        highlightSuggestion(items, Math.min(activeIndex + 1, items.length - 1));
+    } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        highlightSuggestion(items, Math.max(activeIndex - 1, 0));
+    } else if (event.key === 'Enter') {
+        event.preventDefault();
+        if (activeIndex >= 0) {
+            const movie = movieById(parseInt(items[activeIndex].dataset.id));
+            if (movie) selectMovie(fieldIndex, movie);
+        }
+    } else if (event.key === 'Escape') {
+        event.preventDefault();
+        hideList(fieldIndex);
+    }
+}
+
+function highlightSuggestion(items, index) {
+    items.forEach(item => item.classList.remove('is-active'));
+    items[index].classList.add('is-active');
+    items[index].scrollIntoView({ block: 'nearest' });
+}
+
+function hideList(fieldIndex) {
+    document.getElementById(`movie-list-${fieldIndex}`).hidden = true;
+}
+
+function hideAllSuggestions() {
+    for (let i = 1; i <= MOVIE_FIELD_COUNT; i++) hideList(i);
+}
+
+// Resolve free-typed text to a movie: exact title match first, then substring.
+function findMovieByText(text) {
+    const query = text.trim().toLowerCase();
+    if (query === '') return null;
+    const exact = movies.find(movie => movie.title.toLowerCase() === query);
+    if (exact) return exact;
+    return movies.find(movie => movie.title.toLowerCase().includes(query)) || null;
+}
+
+function clearMovieField(fieldIndex) {
+    document.getElementById(`movie-input-${fieldIndex}`).value = '';
+    selectedMovieIds[fieldIndex - 1] = '';
+    hideList(fieldIndex);
 }
 
 // ---------------------------------------------------------------------------
@@ -231,18 +350,24 @@ function updateChip() {
 function addMovies() {
     const added = [];
     const duplicates = [];
+    const notFound = [];
 
-    for (let i = 1; i <= 3; i++) {
-        const select = document.getElementById(`movie-select-${i}`);
-        const selectedId = parseInt(select.value);
-        select.value = ''; // reset field to "None" so it can be reused
+    for (let i = 1; i <= MOVIE_FIELD_COUNT; i++) {
+        const typedText = document.getElementById(`movie-input-${i}`).value;
+        if (typedText.trim() === '') continue; // empty field = "None"
 
-        if (isNaN(selectedId)) continue;
+        // Prefer the movie picked from the suggestion list; otherwise resolve the typed text
+        const movie = selectedMovieIds[i - 1]
+            ? movieById(parseInt(selectedMovieIds[i - 1]))
+            : findMovieByText(typedText);
+        clearMovieField(i);
 
-        const movie = movieById(selectedId);
-        if (!movie) continue;
+        if (!movie) {
+            notFound.push(typedText.trim());
+            continue;
+        }
 
-        if (watchedIds().has(selectedId)) {
+        if (watchedIds().has(movie.id)) {
             duplicates.push(movie.title);
         } else {
             watchedMovies.push(movie);
@@ -261,9 +386,14 @@ function addMovies() {
         );
     } else {
         renderAll();
-        const message = duplicates.length > 0
-            ? `"${duplicates.join('", "')}" already in profile. Select something new.`
-            : 'Select at least one movie from the dropdowns first.';
+        let message;
+        if (duplicates.length > 0) {
+            message = `"${duplicates.join('", "')}" already in profile. Select something new.`;
+        } else if (notFound.length > 0) {
+            message = `No film named "${notFound.join('", "')}" found. Pick one from the suggestions.`;
+        } else {
+            message = 'Type at least one film name and pick it from the suggestions.';
+        }
         setStatus(message);
     }
 }
@@ -290,8 +420,8 @@ function resetProfile() {
     rankedMovies = [];
     batchStart = 0;
 
-    for (let i = 1; i <= 3; i++) {
-        document.getElementById(`movie-select-${i}`).value = '';
+    for (let i = 1; i <= MOVIE_FIELD_COUNT; i++) {
+        clearMovieField(i);
     }
 
     localStorage.removeItem(STORAGE_WATCHED);
@@ -300,7 +430,7 @@ function resetProfile() {
     setStatus('History deleted. Your profile has been reset — start fresh!');
 }
 
-// The "None" option is already available via populateMovieSelects().
+// An empty field means "None" (see the type-ahead inputs above).
 // This alias exists so the spec's browsing model is explicit.
 function getRecommendations() {
     addMovies();

@@ -8,7 +8,7 @@ Built with vanilla HTML, CSS, and JavaScript — no frameworks, no build step.
 
 - **Profile-based recommendations** — the profile is the average genre vector of all movies you've watched.
 - **Cosine similarity** — candidates are ranked by `dot(A, B) / (||A|| · ||B||)` against your profile.
-- **Up to 3 movies per selection** — each of the three dropdowns includes a "None" option, and you can keep adding movies at any time.
+- **Up to 3 movies per selection** — each field is a **type-ahead search box**: just start typing a film name and pick it from the suggestions (an empty box means "None"), and you can keep adding movies at any time.
 - **Automatic recalculation** — every time you add a movie, the profile is rebuilt and the Top-5 recommendations refresh automatically.
 - **Top-5 list with pagination** — "Show Next Top-5" walks through the ranked list (1–5, 6–10, 11–15, …) until you watch/add something new, which resets the window.
 - **History persistence** — with history enabled, your watched movies are saved in `localStorage` and reused on the next visit; disable it to stop saving and ignore previously stored data (status shown via a chip).
@@ -50,7 +50,7 @@ npx serve .
 
 ### Usage
 
-1. Pick up to 3 movies from the dropdowns (use "None" to leave a slot empty) and click **Add to Profile**.
+1. Type a film name into one of the three search boxes and pick it from the suggestions (leave a box empty to skip it). Click **Add to Profile**.
 2. The Top-5 recommendations appear immediately, ranked by cosine similarity to your profile.
 3. Click **Show Next Top-5** to paginate through the ranked list without changing your profile.
 4. Keep adding movies to refine the profile — recommendations update automatically.

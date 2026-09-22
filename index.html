@@ -16,18 +16,28 @@
 
         <section class="card">
             <h2>1 · Build your profile</h2>
+            <p class="hint">Type a film name — results appear as you type. Pick one from the list (leave blank for "None").</p>
             <div class="select-row">
                 <div class="select-group">
-                    <label for="movie-select-1">Movie 1</label>
-                    <select id="movie-select-1"></select>
+                    <label for="movie-input-1">Movie 1</label>
+                    <div class="combobox">
+                        <input type="text" id="movie-input-1" class="movie-input" placeholder="Type a film name..." autocomplete="off">
+                        <ul id="movie-list-1" class="movie-list" hidden></ul>
+                    </div>
                 </div>
                 <div class="select-group">
-                    <label for="movie-select-2">Movie 2</label>
-                    <select id="movie-select-2"></select>
+                    <label for="movie-input-2">Movie 2</label>
+                    <div class="combobox">
+                        <input type="text" id="movie-input-2" class="movie-input" placeholder="Type a film name..." autocomplete="off">
+                        <ul id="movie-list-2" class="movie-list" hidden></ul>
+                    </div>
                 </div>
                 <div class="select-group">
-                    <label for="movie-select-3">Movie 3</label>
-                    <select id="movie-select-3"></select>
+                    <label for="movie-input-3">Movie 3</label>
+                    <div class="combobox">
+                        <input type="text" id="movie-input-3" class="movie-input" placeholder="Type a film name..." autocomplete="off">
+                        <ul id="movie-list-3" class="movie-list" hidden></ul>
+                    </div>
                 </div>
             </div>
             <div class="button-row">

@@ -77,7 +77,20 @@ h1 {
     color: #555;
 }
 
-select {
+.hint {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    margin-bottom: 14px;
+    text-align: left;
+}
+
+/* ---- Type-ahead movie search (combobox) ---- */
+.combobox {
+    position: relative;
+    width: 100%;
+}
+
+.movie-input {
     padding: 10px 12px;
     border: 1px solid #ddd;
     border-radius: 5px;
@@ -87,9 +100,52 @@ select {
     width: 100%;
 }
 
-select:focus {
+.movie-input:focus {
     border-color: #3498db;
     outline: none;
+}
+
+.movie-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    list-style: none;
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 5px 5px;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+    z-index: 10;
+    margin: 0;
+    padding: 0;
+}
+
+.movie-list li {
+    padding: 9px 12px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    color: #333;
+}
+
+.movie-list li:hover,
+.movie-list li.is-active {
+    background-color: #eaf4fc;
+    color: #2c3e50;
+}
+
+.movie-list li.no-match {
+    color: #999;
+    font-style: italic;
+    cursor: default;
+}
+
+.movie-list li small {
+    color: #95a5a6;
+    font-size: 0.78rem;
+    font-weight: normal;
 }
 
 /* ---- Buttons ---- */
