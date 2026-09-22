@@ -14,6 +14,7 @@ Built with vanilla HTML, CSS, and JavaScript — no frameworks, no build step.
 - **History persistence** — with history enabled, your watched movies are saved in `localStorage` and reused on the next visit; disable it to stop saving and ignore previously stored data (status shown via a chip).
 - **No repeats** — already-watched movies never reappear in the recommendations.
 - **Reset** — deletes all saved history and starts from scratch.
+- **Single item vs aggregated profile experiment** — a built-in cartoon-fan demo user, rendered as a side-by-side Top-5 table comparing recommendations from the *last watched movie* alone against the *whole watch history*, with the Jaccard index, overlap count, and unique elements of each list.
 
 ## Project Structure
 
@@ -56,6 +57,7 @@ npx serve .
 4. Keep adding movies to refine the profile — recommendations update automatically.
 5. Toggle **history** to save your watched list between sessions.
 6. Click **Reset** to delete the history and start over.
+7. In the **Experiment** section, the demo cartoon-fan user's Top-5 are compared two ways: against the *last watched movie* only (single active item) versus the *averaged profile* — with Jaccard index, overlap count, and unique items per list. Use **Re-run comparison** to refresh it.
 
 ## How It Works
 

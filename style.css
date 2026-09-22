@@ -318,3 +318,77 @@ button:hover {
     color: #e74c3c;
     font-weight: bold;
 }
+
+/* ---- Experiment section ---- */
+.section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.section-head h2 {
+    margin-bottom: 0;
+}
+
+.btn-inline {
+    flex: 0 0 auto;
+    min-width: 0;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+}
+
+#comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6px 0 12px;
+}
+
+#comparison-table th,
+#comparison-table td {
+    border: 1px solid #e9ecef;
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 0.85rem;
+    vertical-align: top;
+}
+
+#comparison-table th {
+    background-color: #2c3e50;
+    color: #ffffff;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+#comparison-table td:first-child {
+    color: #3498db;
+    font-weight: bold;
+    text-align: center;
+    width: 40px;
+}
+
+#comparison-table td:nth-child(3),
+#comparison-table td:nth-child(5) {
+    color: #27ae60;
+    font-weight: bold;
+    white-space: nowrap;
+    text-align: center;
+    width: 70px;
+}
+
+#comparison-metrics {
+    background-color: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 5px;
+    padding: 14px 16px;
+}
+
+#comparison-metrics p {
+    margin: 6px 0;
+    font-size: 0.9rem;
+    color: #333;
+    text-align: left;
+}

@@ -14,6 +14,19 @@ const STORAGE_HISTORY = 'movierec.historyOn';
 const BATCH_SIZE = 5; // number of recommendations shown per page
 const MOVIE_FIELD_COUNT = 3; // three type-ahead fields
 const MAX_SUGGESTIONS = 10; // max candidates shown while typing
+const COMPARISON_SIZE = 5; // how many recommendations the experiment compares
+
+// Demo user with a cartoon-heavy viewing history, used for the
+// "single active item vs aggregated profile" comparison experiment.
+// "Last watched" (the single active item) is the final id in the list.
+const DEMO_USER = {
+    name: 'Alex (cartoon fan)',
+    movieIds: [1, 71, 95, 99, 404, 50, 174, 204, 588]
+    // Toy Story (1), Lion King (71), Aladdin (95), Snow White (99),
+    // Pinocchio (404), Star Wars (50), Raiders of the Lost Ark (174),
+    // Back to the Future (204), Beauty and the Beast (588) — the last one
+    // is the "single active item" of the experiment.
+};
 
 // Movies the user has liked so far (the "profile")
 let watchedMovies = [];
@@ -55,6 +68,7 @@ window.onload = async function () {
         initMovieInputs();
         restoreHistoryState();
         renderAll();
+        runComparison();
 
         setStatus('Data loaded. Select up to 3 movies and click "Add to Profile".');
     } catch (error) {
@@ -205,18 +219,20 @@ function clearMovieField(fieldIndex) {
 // ---------------------------------------------------------------------------
 // Profile construction
 // ---------------------------------------------------------------------------
-function buildProfileVector() {
+function buildProfileVector(movieList = watchedMovies) {
     const dimensions = GENRE_DIMENSIONS.length; // 19
     const profile = new Array(dimensions).fill(0);
 
-    // Average the genre vectors of every watched movie
-    for (const movie of watchedMovies) {
+    if (movieList.length === 0) return profile;
+
+    // Average the genre vectors of every movie in the list
+    for (const movie of movieList) {
         for (let i = 0; i < dimensions; i++) {
             profile[i] += movie.vector[i];
         }
     }
     for (let i = 0; i < dimensions; i++) {
-        profile[i] = profile[i] / watchedMovies.length;
+        profile[i] = profile[i] / movieList.length;
     }
     return profile;
 }
@@ -504,9 +520,99 @@ function onHistoryToggle() {
 }
 
 // ---------------------------------------------------------------------------
+// Experiment: single active item vs aggregated profile
+// ---------------------------------------------------------------------------
+// Rank the top N movies against a query vector, excluding already-watched ids.
+function topNRecommendations(queryVector, excludeIds, count = COMPARISON_SIZE) {
+    return movies
+        .filter(movie => !excludeIds.has(movie.id))
+        .map(movie => ({
+            ...movie,
+            score: cosineSimilarity(queryVector, movie.vector)
+        }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, count);
+}
+
+// Runs the comparison for the demo user and renders the results.
+function runComparison() {
+    const demoMovies = DEMO_USER.movieIds.map(id => movieById(id)).filter(Boolean);
+    const lastMovie = demoMovies[demoMovies.length - 1];
+    const exclude = new Set(demoMovies.map(movie => movie.id));
+
+    // A) Recommendations purely from the last watched item
+    const singleItemTop = topNRecommendations(lastMovie.vector, exclude);
+
+    // B) Recommendations from the aggregated profile (average of all watched)
+    const profileTop = topNRecommendations(buildProfileVector(demoMovies), exclude);
+
+    renderComparison(demoMovies, lastMovie, singleItemTop, profileTop);
+}
+
+function renderComparison(demoMovies, lastMovie, singleTop, profileTop) {
+    // 1) Describe the demo user and what "single active item" means here
+    const desc = document.getElementById('experiment-desc');
+    desc.textContent = `Demo user "${DEMO_USER.name}" watched ${demoMovies.length} cartoon-leaning movies: ` +
+        `${demoMovies.map(movie => movie.title).join('; ')}. ` +
+        `"Single active item" (last) = "${lastMovie.title}".`;
+
+    // 2) Side-by-side Top-5 table
+    const tbody = document.querySelector('#comparison-table tbody');
+    tbody.innerHTML = '';
+    for (let i = 0; i < COMPARISON_SIZE; i++) {
+        const row = document.createElement('tr');
+
+        const rankCell = document.createElement('td');
+        rankCell.textContent = i + 1;
+
+        const singleTitle = document.createElement('td');
+        singleTitle.textContent = singleTop[i] ? singleTop[i].title : '—';
+        const singleScore = document.createElement('td');
+        singleScore.textContent = singleTop[i] ? `${(singleTop[i].score * 100).toFixed(0)}%` : '—';
+
+        const profileTitle = document.createElement('td');
+        profileTitle.textContent = profileTop[i] ? profileTop[i].title : '—';
+        const profileScore = document.createElement('td');
+        profileScore.textContent = profileTop[i] ? `${(profileTop[i].score * 100).toFixed(0)}%` : '—';
+
+        row.append(rankCell, singleTitle, singleScore, profileTitle, profileScore);
+        tbody.appendChild(row);
+    }
+
+    // 3) Metrics: Jaccard index, overlap count, unique elements of each list
+    const singleIds = singleTop.map(movie => movie.id);
+    const profileIds = profileTop.map(movie => movie.id);
+    const singleSet = new Set(singleIds);
+    const profileSet = new Set(profileIds);
+
+    const overlap = singleIds.filter(id => profileSet.has(id));
+    const union = new Set([...singleIds, ...profileIds]);
+    const jaccard = union.size > 0 ? overlap.length / union.size : 0;
+
+    const uniqueSingle = singleTop.filter(movie => !profileSet.has(movie.id));
+    const uniqueProfile = profileTop.filter(movie => !singleSet.has(movie.id));
+
+    const metricsEl = document.getElementById('comparison-metrics');
+    metricsEl.innerHTML = '';
+    const lines = [
+        `Jaccard index (|A ∩ B| / |A ∪ B|) = ${overlap.length} / ${union.size} = ${jaccard.toFixed(3)}`,
+        `Overlap count (|A ∩ B|) = ${overlap.length} movie(s)` +
+            (overlap.length ? ` — ${overlap.map(id => movieById(id).title).join('; ')}` : ''),
+        `Unique to single-item list (A \\ B): ${uniqueSingle.map(movie => movie.title).join('; ') || 'none'}`,
+        `Unique to aggregated profile list (B \\ A): ${uniqueProfile.map(movie => movie.title).join('; ') || 'none'}`
+    ];
+    lines.forEach(text => {
+        const p = document.createElement('p');
+        p.textContent = text;
+        metricsEl.appendChild(p);
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Wire up event listeners (DOM is fully parsed because scripts load at the end)
 // ---------------------------------------------------------------------------
 document.getElementById('add-btn').addEventListener('click', addMovies);
 document.getElementById('refresh-btn').addEventListener('click', showNextRecommendations);
 document.getElementById('reset-btn').addEventListener('click', resetProfile);
 document.getElementById('history-toggle').addEventListener('change', onHistoryToggle);
+document.getElementById('compare-btn').addEventListener('click', runComparison);

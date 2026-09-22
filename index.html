@@ -69,6 +69,27 @@
             <ol id="result"></ol>
             <p id="status" class="status">Loading data...</p>
         </section>
+
+        <section class="card" id="experiment-section">
+            <div class="section-head">
+                <h2>5 · Experiment: single item vs aggregated profile</h2>
+                <button id="compare-btn" class="btn-inline btn-secondary">Re-run comparison</button>
+            </div>
+            <p class="hint" id="experiment-desc"></p>
+            <table id="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Single item (last watched)</th>
+                        <th>Similarity</th>
+                        <th>Aggregated profile</th>
+                        <th>Similarity</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div id="comparison-metrics"></div>
+        </section>
     </div>
 
     <script src="data.js"></script>
