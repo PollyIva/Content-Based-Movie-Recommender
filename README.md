@@ -15,6 +15,7 @@ Built with vanilla HTML, CSS, and JavaScript — no frameworks, no build step.
 - **No repeats** — already-watched movies never reappear in the recommendations.
 - **Reset** — deletes all saved history and starts from scratch.
 - **Single item vs aggregated profile experiment** — a built-in cartoon-fan demo user, rendered as a side-by-side Top-5 table comparing recommendations from the *last watched movie* alone against the *whole watch history*, with the Jaccard index, overlap count, and unique elements of each list.
+- **Dataset analysis** — two animated explorations of the real data: (1) how cosine normalization changes similarity as movies have few vs many genres (reference: *Star Wars*, 1977), and (2) how many *long-tail* movies (few ratings, threshold selectable: bottom 25% / bottom 50%) each of the two Top-5 approaches recommends.
 
 ## Project Structure
 
@@ -58,6 +59,7 @@ npx serve .
 5. Toggle **history** to save your watched list between sessions.
 6. Click **Reset** to delete the history and start over.
 7. In the **Experiment** section, Top-5 are compared two ways: against the *last watched movie* only (single active item) versus the *averaged profile* — with Jaccard index, overlap count, unique items per list, and charts. It can target **your profile** or the built-in **demo cartoon-fan user** — click **Compare current profile / Return to demo experiment** to switch between them.
+8. The **Dataset analysis** section follows the same two lists: it shows how cosine normalization behaves for movies with few vs many genres, and long-tail distributions (switch the threshold between bottom 25% and 50% of rated movies).
 
 ## How It Works
 

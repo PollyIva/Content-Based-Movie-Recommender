@@ -568,3 +568,144 @@ button:hover {
 .chip-uniq-single { background-color: #3498db; }
 .chip-both { background-color: #27ae60; }
 .chip-uniq-agg { background-color: #e67e22; }
+
+/* ---- Dataset analysis section ---- */
+#norm-table,
+#rank-table,
+#longtail-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6px 0 14px;
+}
+
+#norm-table th, #norm-table td,
+#rank-table th, #rank-table td,
+#longtail-table th, #longtail-table td {
+    border: 1px solid #e9ecef;
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 0.85rem;
+    vertical-align: top;
+}
+
+#norm-table th, #rank-table th, #longtail-table th {
+    background-color: #2c3e50;
+    color: #ffffff;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+#norm-table td:last-child,
+#rank-table td:nth-child(3),
+#longtail-table td:nth-child(2),
+#longtail-table td:nth-child(4) {
+    color: #27ae60;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+#rank-table td:nth-child(2) {
+    color: #3498db;
+    font-weight: bold;
+}
+
+#longtail-table td.lt-yes {
+    color: #e67e22;
+    font-weight: bold;
+    text-align: center;
+    background-color: #fdf1e3;
+}
+
+#longtail-table td.lt-no {
+    color: #bdc3c7;
+    text-align: center;
+}
+
+.lt-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.lt-controls label {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #555;
+}
+
+.lt-controls select {
+    width: auto;
+    padding: 7px 10px;
+}
+
+.lt-chart {
+    background-color: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 5px;
+    padding: 14px 16px;
+}
+
+.lt-group-title {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #2c3e50;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin: 8px 0 6px;
+}
+
+.lt-group-title:first-child {
+    margin-top: 0;
+}
+
+.lt-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0;
+}
+
+.lt-title {
+    flex: 0 0 34%;
+    max-width: 34%;
+    font-size: 0.75rem;
+    color: #555;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lt-track {
+    flex: 1;
+    background-color: #f1f3f4;
+    border-radius: 4px;
+    height: 14px;
+    position: relative;
+}
+
+.lt-bar {
+    display: block;
+    height: 14px;
+    border-radius: 4px;
+    background-color: #3498db;
+    min-width: 3px;
+}
+
+.lt-bar.agg {
+    background-color: #27ae60;
+}
+
+.lt-bar.tail {
+    background-color: #e67e22;
+}
+
+.lt-count {
+    flex: 0 0 52px;
+    font-size: 0.75rem;
+    color: #333;
+    text-align: right;
+    font-weight: bold;
+}

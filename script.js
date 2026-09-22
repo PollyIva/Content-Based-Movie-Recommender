@@ -20,6 +20,14 @@ const COMPARISON_SIZE = 5; // how many recommendations the experiment compares
 // live profile of whoever is using the page right now ('current')
 let comparisonMode = 'demo';
 
+// Top-5 lists of the currently rendered comparison — reused by the long-tail
+// analysis in section 6 so both sections always show the same two approaches
+let analysisSingleTop = [];
+let analysisProfileTop = [];
+
+// Current "long-tail" threshold (rating count below this = long-tail)
+let longTailThreshold = 0;
+
 // Demo user with a cartoon-heavy viewing history, used for the
 // "single active item vs aggregated profile" comparison experiment.
 // "Last watched" (the single active item) is the final id in the list.
@@ -73,6 +81,7 @@ window.onload = async function () {
         restoreHistoryState();
         renderAll();
         runComparison();
+        runDatasetAnalysis();
 
         setStatus('Data loaded. Select up to 3 movies and click "Add to Profile".');
     } catch (error) {
@@ -613,6 +622,8 @@ function runCurrentComparison() {
 
 // Empty-profile state: show a hint instead of stale results.
 function clearComparisonView(message) {
+    analysisSingleTop = [];
+    analysisProfileTop = [];
     document.getElementById('experiment-desc').textContent = message;
     document.querySelector('#comparison-table tbody').innerHTML = '';
     document.getElementById('rank-chart').innerHTML = '';
@@ -621,9 +632,14 @@ function clearComparisonView(message) {
     document.getElementById('set-legend').innerHTML = '';
     document.getElementById('set-chips').innerHTML = '';
     document.getElementById('comparison-metrics').innerHTML = '';
+    renderLongTailAnalysis();
 }
 
 function renderComparison(singleTop, profileTop, description) {
+    // Expose the lists for the long-tail analysis in section 6
+    analysisSingleTop = singleTop;
+    analysisProfileTop = profileTop;
+
     // 1) Describe the target user and what "single active item" means here
     document.getElementById('experiment-desc').textContent = description;
 
@@ -681,6 +697,9 @@ function renderComparison(singleTop, profileTop, description) {
     // 4) Visualizations
     renderRankChart(singleTop, profileTop);
     renderSetVisualization(singleTop, profileTop);
+
+    // 5) Long-tail breakdown of the same two lists (section 6, part B)
+    renderLongTailAnalysis();
 }
 
 // Vertical grouped bars: similarity % for the single-item vs the aggregated
@@ -817,6 +836,272 @@ function renderSetVisualization(singleTop, profileTop) {
 }
 
 // ---------------------------------------------------------------------------
+// Dataset analysis (section 6)
+// ---------------------------------------------------------------------------
+function runDatasetAnalysis() {
+    initLongTailThresholdOptions();
+    renderNormalizationTable();
+    renderRankingTable();
+    renderLongTailAnalysis();
+}
+
+// Number of ratings a movie received (0 if never rated).
+function ratingCountOf(movieId) {
+    return ratingsCount.get(movieId) || 0;
+}
+
+// True when a movie has fewer ratings than the active long-tail threshold.
+function isLongTailMovie(movie) {
+    return ratingCountOf(movie.id) < longTailThreshold;
+}
+
+// ---------------------------------------------------------------------------
+// A) Cosine normalization — movies with few genres vs many genres
+//    Same raw overlap (number of shared genres) but very different cosine
+//    scores once the ||v|| division is applied.
+// ---------------------------------------------------------------------------
+function renderNormalizationTable() {
+    const reference = movies.find(movie => movie.title === 'Star Wars (1977)') || movies[0];
+    const tbody = document.querySelector('#norm-table tbody');
+    tbody.innerHTML = '';
+
+    // For each genre-count bucket pick the candidate that shares the most
+    // genres with the reference (first match wins on ties, so it is stable).
+    const picked = new Map();
+    for (const movie of movies) {
+        if (movie.id === reference.id || movie.genres.length === 0) continue;
+        const shared = dotProduct(reference.vector, movie.vector);
+        if (shared === 0) continue;
+        const bucket = movie.genres.length;
+        if (!picked.has(bucket) || shared > picked.get(bucket).shared) {
+            picked.set(bucket, { movie, shared });
+        }
+    }
+
+    [...picked.keys()].sort((a, b) => a - b).forEach(bucket => {
+        const { movie, shared } = picked.get(bucket);
+        const row = document.createElement('tr');
+
+        const title = document.createElement('td');
+        title.textContent = movie.title;
+        title.title = movie.title;
+        row.appendChild(title);
+
+        const genres = document.createElement('td');
+        genres.textContent = movie.genres.join(', ');
+        row.appendChild(genres);
+
+        const norm = document.createElement('td');
+        norm.textContent = `√${movie.vector.reduce((a, b) => a + b, 0)}`; // ||v||
+        row.appendChild(norm);
+
+        const raw = document.createElement('td');
+        raw.textContent = shared; // raw = dot product (un-normalized)
+        row.appendChild(raw);
+
+        const cosine = document.createElement('td');
+        cosine.textContent = cosineSimilarity(reference.vector, movie.vector).toFixed(3);
+        row.appendChild(cosine);
+
+        if (shared === 5) row.style.backgroundColor = '#fffbe6'; // high raw but heavy ||v||
+        tbody.appendChild(row);
+    });
+}
+
+function dotProduct(vectorA, vectorB) {
+    let result = 0;
+    for (let i = 0; i < vectorA.length; i++) result += vectorA[i] * vectorB[i];
+    return result;
+}
+
+// Ranking effect: the same candidates sorted by raw dot product versus cosine.
+function renderRankingTable() {
+    const reference = movies.find(movie => movie.title === 'Star Wars (1977)') || movies[0];
+    const candidates = movies.filter(movie => movie.id !== reference.id);
+
+    const byRaw = candidates
+        .map(movie => ({ ...movie, score: dotProduct(reference.vector, movie.vector) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, COMPARISON_SIZE);
+
+    const byCosine = candidates
+        .map(movie => ({ ...movie, score: cosineSimilarity(reference.vector, movie.vector) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, COMPARISON_SIZE);
+
+    const tbody = document.querySelector('#rank-table tbody');
+    tbody.innerHTML = '';
+    for (let i = 0; i < COMPARISON_SIZE; i++) {
+        const row = document.createElement('tr');
+
+        const rank = document.createElement('td');
+        rank.textContent = i + 1;
+        row.appendChild(rank);
+
+        const rawCell = document.createElement('td');
+        rawCell.textContent = byRaw[i] ? `${byRaw[i].title} (${byRaw[i].score})` : '—';
+        row.appendChild(rawCell);
+
+        const cosCell = document.createElement('td');
+        cosCell.textContent = byCosine[i] ? `${byCosine[i].title} (${byCosine[i].score.toFixed(3)})` : '—';
+        row.appendChild(cosCell);
+
+        tbody.appendChild(row);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// B) Long-tail analysis:
+//    1,682 movies × how many ratings each has; a movie is "long-tail" if its
+//    rating count is below the chosen percentile threshold.
+// ---------------------------------------------------------------------------
+function getRatingThreshold(mode) {
+    const values = [...ratingsCount.values()].sort((a, b) => a - b);
+    const percentile = mode === 'p50' ? 0.5 : 0.25;
+    const index = Math.max(0, Math.floor(values.length * percentile) - 1);
+    return values[index];
+}
+
+function initLongTailThresholdOptions() {
+    const options = {
+        p25: getRatingThreshold('p25'),
+        p50: getRatingThreshold('p50')
+    };
+    document.querySelector('#lt-threshold option[value="p25"]').textContent =
+        `bottom 25% — fewer than ${options.p25} ratings`;
+    document.querySelector('#lt-threshold option[value="p50"]').textContent =
+        `bottom 50% — fewer than ${options.p50} ratings`;
+}
+
+function renderLongTailAnalysis() {
+    const mode = document.getElementById('lt-threshold').value;
+    longTailThreshold = getRatingThreshold(mode);
+
+    // Baseline: what share of ALL dataset movies qualify as long-tail
+    const longTailTotal = movies.filter(isLongTailMovie).length;
+    const baselineShare = (longTailTotal / movies.length) * 100;
+
+    // Table
+    const tbody = document.querySelector('#longtail-table tbody');
+    tbody.innerHTML = '';
+
+    const lists = [analysisSingleTop, analysisProfileTop];
+    const singleTail = [];
+    const profileTail = [];
+
+    for (let i = 0; i < COMPARISON_SIZE; i++) {
+        const row = document.createElement('tr');
+
+        const rank = document.createElement('td');
+        rank.textContent = i + 1;
+        row.appendChild(rank);
+
+        // Single-item column
+        const single = lists[0][i];
+        const singleCell = document.createElement('td');
+        singleCell.textContent = single ? `${single.title} (${ratingCountOf(single.id)} ratings)` : '—';
+        singleCell.title = single ? single.title : '';
+        row.appendChild(singleCell);
+
+        const singleFlag = document.createElement('td');
+        if (single) {
+            const tail = isLongTailMovie(single);
+            singleFlag.className = tail ? 'lt-yes' : 'lt-no';
+            singleFlag.textContent = tail ? '✓' : '–';
+            if (tail) singleTail.push(single);
+        }
+        row.appendChild(singleFlag);
+
+        // Aggregated column
+        const aggregate = lists[1][i];
+        const aggCell = document.createElement('td');
+        aggCell.textContent = aggregate ? `${aggregate.title} (${ratingCountOf(aggregate.id)} ratings)` : '—';
+        aggCell.title = aggregate ? aggregate.title : '';
+        row.appendChild(aggCell);
+
+        const aggFlag = document.createElement('td');
+        if (aggregate) {
+            const tail = isLongTailMovie(aggregate);
+            aggFlag.className = tail ? 'lt-yes' : 'lt-no';
+            aggFlag.textContent = tail ? '✓' : '–';
+            if (tail) profileTail.push(aggregate);
+        }
+        row.appendChild(aggFlag);
+
+        tbody.appendChild(row);
+    }
+
+    // Summary line
+    const summary = document.getElementById('longtail-summary');
+    summary.textContent =
+        `Long-tail (raw ratings < ${longTailThreshold}) share of the whole dataset: ${longTailTotal}/${movies.length} (${baselineShare.toFixed(1)}%). ` +
+        `In the two Top-5 lists: single item — ${singleTail.length}/5, aggregated profile — ${profileTail.length}/5.`;
+
+    // Horizontal bar chart of rating counts for each recommended movie
+    renderLongTailChart();
+}
+
+function renderLongTailChart() {
+    const container = document.getElementById('longtail-chart');
+    container.innerHTML = '';
+    if (analysisSingleTop.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'lt-group-title';
+        empty.textContent = 'No profile — add movies to see the analysis.';
+        container.appendChild(empty);
+        return;
+    }
+
+    const maxRating = Math.max(
+        ...analysisSingleTop.map(m => ratingCountOf(m.id)),
+        ...analysisProfileTop.map(m => ratingCountOf(m.id))
+    );
+
+    container.appendChild(buildLongTailGroup('Single item (last watched)', analysisSingleTop, 'lt-bar', maxRating));
+    container.appendChild(buildLongTailGroup('Aggregated profile', analysisProfileTop, 'lt-bar agg', maxRating));
+}
+
+function buildLongTailGroup(title, list, barClass, maxRating) {
+    const group = document.createElement('div');
+
+    const heading = document.createElement('div');
+    heading.className = 'lt-group-title';
+    heading.textContent = title;
+    group.appendChild(heading);
+
+    list.forEach(movie => {
+        const count = ratingCountOf(movie.id);
+
+        const row = document.createElement('div');
+        row.className = 'lt-row';
+
+        const titleEl = document.createElement('span');
+        titleEl.className = 'lt-title';
+        titleEl.textContent = movie.title;
+        titleEl.title = movie.title;
+        row.appendChild(titleEl);
+
+        const track = document.createElement('span');
+        track.className = 'lt-track';
+
+        const bar = document.createElement('span');
+        bar.className = isLongTailMovie(movie) ? `${barClass} tail` : barClass;
+        bar.style.width = `${(count / maxRating) * 100}%`;
+        track.appendChild(bar);
+        row.appendChild(track);
+
+        const countEl = document.createElement('span');
+        countEl.className = 'lt-count';
+        countEl.textContent = count;
+        row.appendChild(countEl);
+
+        group.appendChild(row);
+    });
+
+    return group;
+}
+
+// ---------------------------------------------------------------------------
 // Wire up event listeners (DOM is fully parsed because scripts load at the end)
 // ---------------------------------------------------------------------------
 document.getElementById('add-btn').addEventListener('click', addMovies);
@@ -824,3 +1109,4 @@ document.getElementById('refresh-btn').addEventListener('click', showNextRecomme
 document.getElementById('reset-btn').addEventListener('click', resetProfile);
 document.getElementById('history-toggle').addEventListener('change', onHistoryToggle);
 document.getElementById('compare-btn').addEventListener('click', toggleComparisonTarget);
+document.getElementById('lt-threshold').addEventListener('change', renderLongTailAnalysis);

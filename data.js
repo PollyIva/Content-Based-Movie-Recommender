@@ -8,6 +8,9 @@
 let movies = [];
 let ratings = [];
 
+// itemId -> number of ratings it received, used for the long-tail analysis
+let ratingsCount = new Map();
+
 // The 19 genre dimensions stored in each u.item line (dimension 0 is "unknown")
 const GENRE_DIMENSIONS = [
     "unknown", "Action", "Adventure", "Animation", "Children's", "Comedy",
@@ -99,11 +102,17 @@ function parseRatingData(text) {
         const fields = line.split('\t');
         if (fields.length < 4) continue;
 
+        const userId = parseInt(fields[0]);
+        const itemId = parseInt(fields[1]);
+
         ratings.push({
-            userId: parseInt(fields[0]),
-            itemId: parseInt(fields[1]),
+            userId: userId,
+            itemId: itemId,
             rating: parseFloat(fields[2]),
             timestamp: parseInt(fields[3])
         });
+
+        // Count ratings per movie while parsing
+        ratingsCount.set(itemId, (ratingsCount.get(itemId) || 0) + 1);
     }
 }

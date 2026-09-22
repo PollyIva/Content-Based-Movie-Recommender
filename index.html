@@ -103,6 +103,64 @@
 
             <div id="comparison-metrics"></div>
         </section>
+
+        <section class="card" id="analysis-section">
+            <div class="section-head">
+                <div class="head-left">
+                    <h2>6 · Dataset analysis</h2>
+                    <span class="chip chip-demo">u.item + u.data</span>
+                </div>
+            </div>
+
+            <h3 class="viz-title">A · Cosine normalization: movies with few vs many genres (reference: Star Wars, 1977)</h3>
+            <table id="norm-table">
+                <thead>
+                    <tr>
+                        <th>Candidate movie</th>
+                        <th>Genres</th>
+                        <th>|v|</th>
+                        <th>Shared (raw = dot)</th>
+                        <th>Cosine (normalized)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <h3 class="viz-title">Ranking effect: Top-5 by raw overlap vs Top-5 by cosine (reference excluded)</h3>
+            <table id="rank-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Top-5 by raw dot product (score)</th>
+                        <th>Top-5 by cosine (score)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <h3 class="viz-title">B · Long-tail movies (few ratings) in the two Top-5 lists of section 5</h3>
+            <div class="lt-controls">
+                <label for="lt-threshold">Long-tail = fewer than:</label>
+                <select id="lt-threshold">
+                    <option value="p25">bottom 25% of rated movies</option>
+                    <option value="p50">bottom 50% of rated movies</option>
+                </select>
+            </div>
+            <table id="longtail-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Single item — movie (ratings)</th>
+                        <th>LT</th>
+                        <th>Aggregated profile — movie (ratings)</th>
+                        <th>LT</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <p id="longtail-summary" class="metrics"></p>
+            <div id="longtail-chart" class="lt-chart"></div>
+        </section>
     </div>
 
     <script src="data.js"></script>
