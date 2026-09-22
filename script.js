@@ -606,6 +606,143 @@ function renderComparison(demoMovies, lastMovie, singleTop, profileTop) {
         p.textContent = text;
         metricsEl.appendChild(p);
     });
+
+    // 4) Visualizations
+    renderRankChart(singleTop, profileTop);
+    renderSetVisualization(singleTop, profileTop);
+}
+
+// Vertical grouped bars: similarity % for the single-item vs the aggregated
+// profile at each rank.
+function renderRankChart(singleTop, profileTop) {
+    const container = document.getElementById('rank-chart');
+    container.innerHTML = '';
+
+    for (let i = 0; i < COMPARISON_SIZE; i++) {
+        const single = singleTop[i];
+        const aggregate = profileTop[i];
+        if (!single || !aggregate) continue;
+
+        const group = document.createElement('div');
+        group.className = 'rank-group';
+
+        const bars = document.createElement('div');
+        bars.className = 'bars';
+        bars.appendChild(buildBarPair(single, 'bar-single'));
+        bars.appendChild(buildBarPair(aggregate, 'bar-agg'));
+        group.appendChild(bars);
+
+        const rank = document.createElement('div');
+        rank.className = 'rank-num';
+        rank.textContent = `#${i + 1}`;
+        group.appendChild(rank);
+
+        const titleSingle = document.createElement('div');
+        titleSingle.className = 't-name';
+        titleSingle.textContent = single.title;
+        titleSingle.title = single.title;
+        group.appendChild(titleSingle);
+
+        const titleAgg = document.createElement('div');
+        titleAgg.className = 't-name';
+        titleAgg.textContent = aggregate.title;
+        titleAgg.title = aggregate.title;
+        group.appendChild(titleAgg);
+
+        container.appendChild(group);
+    }
+
+    const legend = document.getElementById('rank-legend');
+    legend.innerHTML = '';
+    legend.appendChild(makeLegendDot('dot-single', 'Single item (last watched)'));
+    legend.appendChild(makeLegendDot('dot-agg', 'Aggregated profile'));
+}
+
+function buildBarPair(movie, barClass) {
+    const side = document.createElement('div');
+    side.className = 'side';
+    side.title = `${movie.title} — ${(movie.score * 100).toFixed(0)}%`;
+
+    const pct = document.createElement('span');
+    pct.className = 'pct';
+    pct.textContent = `${(movie.score * 100).toFixed(0)}%`;
+
+    const bar = document.createElement('div');
+    bar.className = `bar ${barClass}`;
+    bar.style.height = `${Math.max(3, Math.round(movie.score * 100))}%`;
+
+    side.append(pct, bar);
+    return side;
+}
+
+function makeLegendDot(dotClass, label) {
+    const item = document.createElement('span');
+    const dot = document.createElement('span');
+    dot.className = `dot ${dotClass}`;
+    item.appendChild(dot);
+    item.appendChild(document.createTextNode(label));
+    return item;
+}
+
+// Stacked bar + colored chips showing how the two Top-5 lists overlap:
+// blue = only in the single-item list, green = in both, orange = only in the
+// aggregated profile list.
+function renderSetVisualization(singleTop, profileTop) {
+    const singleSet = new Set(singleTop.map(movie => movie.id));
+    const profileSet = new Set(profileTop.map(movie => movie.id));
+
+    const uniqueSingle = singleTop.filter(movie => !profileSet.has(movie.id));
+    const overlap = singleTop.filter(movie => profileSet.has(movie.id));
+    const uniqueAgg = profileTop.filter(movie => !singleSet.has(movie.id));
+
+    const total = uniqueSingle.length + overlap.length + uniqueAgg.length;
+
+    // Stacked bar
+    const barEl = document.getElementById('set-bar');
+    barEl.innerHTML = '';
+    const segments = [
+        { cls: 'seg-single', count: uniqueSingle.length, label: 'Single-item only', titles: uniqueSingle.map(m => m.title).join('; ') },
+        { cls: 'seg-both', count: overlap.length, label: 'In both lists', titles: overlap.map(m => m.title).join('; ') },
+        { cls: 'seg-agg', count: uniqueAgg.length, label: 'Aggregated only', titles: uniqueAgg.map(m => m.title).join('; ') }
+    ];
+    segments.forEach(seg => {
+        if (seg.count === 0) return;
+        const el = document.createElement('div');
+        el.className = `seg ${seg.cls}`;
+        el.style.width = `${(seg.count / total) * 100}%`;
+        el.title = `${seg.label}: ${seg.count} movie(s) — ${seg.titles}`;
+
+        const label = document.createElement('span');
+        label.textContent = seg.count;
+        if (seg.count / total < 0.18) label.classList.add('seg-out');
+        el.appendChild(label);
+        barEl.appendChild(el);
+    });
+
+    // Legend with counts
+    const legend = document.getElementById('set-legend');
+    legend.innerHTML = '';
+    legend.appendChild(makeLegendDot('dot-uniq-single', `Single-item only (${uniqueSingle.length})`));
+    legend.appendChild(makeLegendDot('dot-both', `In both lists (${overlap.length})`));
+    legend.appendChild(makeLegendDot('dot-uniq-agg', `Aggregated only (${uniqueAgg.length})`));
+
+    // Colored movie chips grouped by membership
+    const chipsEl = document.getElementById('set-chips');
+    chipsEl.innerHTML = '';
+    const groups = [
+        { movies: uniqueSingle, cls: 'chip-uniq-single' },
+        { movies: overlap, cls: 'chip-both' },
+        { movies: uniqueAgg, cls: 'chip-uniq-agg' }
+    ];
+    groups.forEach(group => {
+        group.movies.forEach(movie => {
+            const chip = document.createElement('span');
+            chip.className = `schip ${group.cls}`;
+            chip.textContent = movie.title;
+            chip.title = movie.title;
+            chipsEl.appendChild(chip);
+        });
+    });
 }
 
 // ---------------------------------------------------------------------------
