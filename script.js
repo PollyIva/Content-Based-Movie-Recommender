@@ -16,6 +16,10 @@ const MOVIE_FIELD_COUNT = 3; // three type-ahead fields
 const MAX_SUGGESTIONS = 10; // max candidates shown while typing
 const COMPARISON_SIZE = 5; // how many recommendations the experiment compares
 
+// Which user the experiment compares: the built-in demo ('demo') or the
+// live profile of whoever is using the page right now ('current')
+let comparisonMode = 'demo';
+
 // Demo user with a cartoon-heavy viewing history, used for the
 // "single active item vs aggregated profile" comparison experiment.
 // "Last watched" (the single active item) is the final id in the list.
@@ -397,6 +401,7 @@ function addMovies() {
         batchStart = 0;
         recalculate();
         renderAll();
+        if (comparisonMode === 'current') runComparison();
         setStatus(
             `Added "${added.join('", "')}" to your profile. Profile updated, recommendations recalculated automatically.`
         );
@@ -442,6 +447,7 @@ function resetProfile() {
 
     localStorage.removeItem(STORAGE_WATCHED);
     renderAll();
+    if (comparisonMode === 'current') runComparison();
 
     setStatus('History deleted. Your profile has been reset — start fresh!');
 }
@@ -516,6 +522,7 @@ function onHistoryToggle() {
         renderAll();
         setStatus('History disabled — new movies are not saved and saved history is not used.');
     }
+    if (comparisonMode === 'current') runComparison();
     updateChip();
 }
 
@@ -534,8 +541,41 @@ function topNRecommendations(queryVector, excludeIds, count = COMPARISON_SIZE) {
         .slice(0, count);
 }
 
-// Runs the comparison for the demo user and renders the results.
+// The section can target either the built-in demo user or the live profile.
+// The header button toggles between the two targets and re-runs the analysis.
+function toggleComparisonTarget() {
+    comparisonMode = comparisonMode === 'demo' ? 'current' : 'demo';
+    runComparison();
+}
+
+// Keeps the chip and the button label in sync with the active target.
+function updateComparisonControls() {
+    const chip = document.getElementById('comparison-target-chip');
+    const button = document.getElementById('compare-btn');
+
+    if (comparisonMode === 'current') {
+        chip.textContent = 'Target: your profile';
+        chip.className = 'chip chip-current';
+        button.textContent = 'Return to demo experiment';
+    } else {
+        chip.textContent = `Target: demo user (${DEMO_USER.name.split(' ')[0]})`;
+        chip.className = 'chip chip-demo';
+        button.textContent = 'Compare current profile';
+    }
+}
+
+// Runs the comparison for whichever target is active.
 function runComparison() {
+    updateComparisonControls();
+    if (comparisonMode === 'current') {
+        runCurrentComparison();
+    } else {
+        runDemoComparison();
+    }
+}
+
+// Original experiment: demo cartoon-fan user vs his own last item.
+function runDemoComparison() {
     const demoMovies = DEMO_USER.movieIds.map(id => movieById(id)).filter(Boolean);
     const lastMovie = demoMovies[demoMovies.length - 1];
     const exclude = new Set(demoMovies.map(movie => movie.id));
@@ -546,15 +586,46 @@ function runComparison() {
     // B) Recommendations from the aggregated profile (average of all watched)
     const profileTop = topNRecommendations(buildProfileVector(demoMovies), exclude);
 
-    renderComparison(demoMovies, lastMovie, singleItemTop, profileTop);
-}
-
-function renderComparison(demoMovies, lastMovie, singleTop, profileTop) {
-    // 1) Describe the demo user and what "single active item" means here
-    const desc = document.getElementById('experiment-desc');
-    desc.textContent = `Demo user "${DEMO_USER.name}" watched ${demoMovies.length} cartoon-leaning movies: ` +
+    const description = `Demo user "${DEMO_USER.name}" watched ${demoMovies.length} cartoon-leaning movies: ` +
         `${demoMovies.map(movie => movie.title).join('; ')}. ` +
         `"Single active item" (last) = "${lastMovie.title}".`;
+    renderComparison(singleItemTop, profileTop, description);
+}
+
+// Same comparison, but for the profile of the currently open user.
+function runCurrentComparison() {
+    if (watchedMovies.length === 0) {
+        clearComparisonView('Your profile is empty. Add some movies first — the comparison will then use your history.');
+        return;
+    }
+
+    const lastMovie = watchedMovies[watchedMovies.length - 1];
+    const exclude = new Set(watchedMovies.map(movie => movie.id));
+
+    const singleItemTop = topNRecommendations(lastMovie.vector, exclude);
+    const profileTop = topNRecommendations(buildProfileVector(watchedMovies), exclude);
+
+    const description = `Your profile: ${watchedMovies.length} movie(s): ` +
+        `${watchedMovies.map(movie => movie.title).join('; ')}. ` +
+        `"Single active item" (last added) = "${lastMovie.title}".`;
+    renderComparison(singleItemTop, profileTop, description);
+}
+
+// Empty-profile state: show a hint instead of stale results.
+function clearComparisonView(message) {
+    document.getElementById('experiment-desc').textContent = message;
+    document.querySelector('#comparison-table tbody').innerHTML = '';
+    document.getElementById('rank-chart').innerHTML = '';
+    document.getElementById('rank-legend').innerHTML = '';
+    document.getElementById('set-bar').innerHTML = '';
+    document.getElementById('set-legend').innerHTML = '';
+    document.getElementById('set-chips').innerHTML = '';
+    document.getElementById('comparison-metrics').innerHTML = '';
+}
+
+function renderComparison(singleTop, profileTop, description) {
+    // 1) Describe the target user and what "single active item" means here
+    document.getElementById('experiment-desc').textContent = description;
 
     // 2) Side-by-side Top-5 table
     const tbody = document.querySelector('#comparison-table tbody');
@@ -752,4 +823,4 @@ document.getElementById('add-btn').addEventListener('click', addMovies);
 document.getElementById('refresh-btn').addEventListener('click', showNextRecommendations);
 document.getElementById('reset-btn').addEventListener('click', resetProfile);
 document.getElementById('history-toggle').addEventListener('change', onHistoryToggle);
-document.getElementById('compare-btn').addEventListener('click', runComparison);
+document.getElementById('compare-btn').addEventListener('click', toggleComparisonTarget);

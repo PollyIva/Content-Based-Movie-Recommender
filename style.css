@@ -333,6 +333,21 @@ button:hover {
     margin-bottom: 0;
 }
 
+.head-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.chip-demo {
+    background-color: #9b59b6;
+}
+
+.chip-current {
+    background-color: #3498db;
+}
+
 .btn-inline {
     flex: 0 0 auto;
     min-width: 0;

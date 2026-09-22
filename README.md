@@ -57,7 +57,7 @@ npx serve .
 4. Keep adding movies to refine the profile — recommendations update automatically.
 5. Toggle **history** to save your watched list between sessions.
 6. Click **Reset** to delete the history and start over.
-7. In the **Experiment** section, the demo cartoon-fan user's Top-5 are compared two ways: against the *last watched movie* only (single active item) versus the *averaged profile* — with Jaccard index, overlap count, and unique items per list. Use **Re-run comparison** to refresh it.
+7. In the **Experiment** section, Top-5 are compared two ways: against the *last watched movie* only (single active item) versus the *averaged profile* — with Jaccard index, overlap count, unique items per list, and charts. It can target **your profile** or the built-in **demo cartoon-fan user** — click **Compare current profile / Return to demo experiment** to switch between them.
 
 ## How It Works
 
