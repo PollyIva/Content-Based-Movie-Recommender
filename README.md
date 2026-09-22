@@ -11,7 +11,7 @@ Built with vanilla HTML, CSS, and JavaScript — no frameworks, no build step.
 - **Up to 3 movies per selection** — each field is a **type-ahead search box**: just start typing a film name and pick it from the suggestions (an empty box means "None"), and you can keep adding movies at any time.
 - **Automatic recalculation** — every time you add a movie, the profile is rebuilt and the Top-5 recommendations refresh automatically.
 - **Top-5 list with pagination** — "Show Next Top-5" walks through the ranked list (1–5, 6–10, 11–15, …) until you watch/add something new, which resets the window.
-- **History persistence** — with history enabled, your watched movies are saved in `localStorage` and reused on the next visit; disable it to stop saving and ignore previously stored data (status shown via a chip).
+- **History persistence** — with history enabled, your watched movies are saved in `localStorage` and reused on the next visit; disable it to ignore the saved history completely and use each request as a *one-off* (picks are used for that recommendation only and nothing is recorded), with the status shown via a chip.
 - **No repeats** — already-watched movies never reappear in the recommendations.
 - **Reset** — deletes all saved history and starts from scratch.
 - **Single item vs aggregated profile experiment** — a built-in cartoon-fan demo user, rendered as a side-by-side Top-5 table comparing recommendations from the *last watched movie* alone against the *whole watch history*, with the Jaccard index, overlap count, and unique elements of each list.
@@ -52,11 +52,11 @@ npx serve .
 
 ### Usage
 
-1. Type a film name into one of the three search boxes and pick it from the suggestions (leave a box empty to skip it). Click **Add to Profile**.
+1. Type a film name into one of the three search boxes and pick it from the suggestions (leave a box empty to skip it). Click **Give a Recommendation**.
 2. The Top-5 recommendations appear immediately, ranked by cosine similarity to your profile.
 3. Click **Show Next Top-5** to paginate through the ranked list without changing your profile.
 4. Keep adding movies to refine the profile — recommendations update automatically.
-5. Toggle **history** to save your watched list between sessions.
+5. Toggle **history**: ON saves your watched list between sessions; OFF ignores saved history and treats each request as a one-off (nothing is recorded).
 6. Click **Reset** to delete the history and start over.
 7. In the **Experiment** section, Top-5 are compared two ways: against the *last watched movie* only (single active item) versus the *averaged profile* — with Jaccard index, overlap count, unique items per list, and charts. It can target **your profile** or the built-in **demo cartoon-fan user** — click **Compare current profile / Return to demo experiment** to switch between them.
 8. The **Dataset analysis** section follows the same two lists: it shows how cosine normalization behaves for movies with few vs many genres, and long-tail distributions (switch the threshold between bottom 25% and 50% of rated movies).

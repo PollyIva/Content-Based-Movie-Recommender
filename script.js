@@ -83,7 +83,7 @@ window.onload = async function () {
         runComparison();
         runDatasetAnalysis();
 
-        setStatus('Data loaded. Select up to 3 movies and click "Add to Profile".');
+        setStatus('Data loaded. Select up to 3 movies and click "Give a Recommendation".');
     } catch (error) {
         console.error('Initialization error:', error);
         // Error message was already written to the page by data.js
@@ -273,9 +273,12 @@ function cosineSimilarity(vectorA, vectorB) {
 // Rank every unwatched movie against the profile with cosine similarity.
 // Already-watched movies are always excluded from the results.
 // ---------------------------------------------------------------------------
-function recalculate() {
-    const profile = buildProfileVector();
+function recalculate(profileMovies = watchedMovies) {
+    const profile = buildProfileVector(profileMovies);
+    // Exclude the watched movies themselves, plus the movies of a one-off
+    // request (history OFF), so a picked film never recommends itself.
     const watched = watchedIds();
+    for (const movie of profileMovies) watched.add(movie.id);
 
     rankedMovies = movies
         .filter(movie => !watched.has(movie.id))
@@ -300,10 +303,14 @@ function renderWatched() {
     const metricsElement = document.getElementById('metrics');
 
     listElement.innerHTML = '';
-    metricsElement.textContent = `Profile: ${watchedMovies.length} movie(s) · vector = average of their genre vectors`;
+    metricsElement.textContent = historyEnabled
+        ? `Profile: ${watchedMovies.length} movie(s) · vector = average of their genre vectors`
+        : 'Profile: not recorded (history OFF) · each request is one-off';
 
     if (watchedMovies.length === 0) {
-        listElement.innerHTML = '<li class="empty">No movies in your profile yet.</li>';
+        listElement.innerHTML = historyEnabled
+            ? '<li class="empty">No movies in your profile yet.</li>'
+            : '<li class="empty">History is OFF — picks are used for one recommendation only and are not recorded.</li>';
         return;
     }
 
@@ -319,8 +326,10 @@ function renderResults() {
     listElement.innerHTML = '';
 
     // No profile yet -> nothing to compare against
-    if (watchedMovies.length === 0) {
-        listElement.innerHTML = '<li class="empty">Add movies to your profile to see recommendations.</li>';
+    if (watchedMovies.length === 0 && rankedMovies.length === 0) {
+        listElement.innerHTML = historyEnabled
+            ? '<li class="empty">Add movies to your profile to see recommendations.</li>'
+            : '<li class="empty">History is OFF — pick a movie and click "Give a Recommendation".</li>';
         return;
     }
 
@@ -367,7 +376,7 @@ function updateChip() {
         chip.textContent = `History ON · ${loadStoredIds().length} saved`;
         chip.className = 'chip chip-on';
     } else {
-        chip.textContent = 'History OFF · nothing saved';
+        chip.textContent = 'History OFF · one-off requests';
         chip.className = 'chip chip-off';
     }
 }
@@ -375,11 +384,15 @@ function updateChip() {
 // ---------------------------------------------------------------------------
 // User actions
 // ---------------------------------------------------------------------------
-// Add the currently selected movies (up to 3) to the profile.
+// Give a recommendation for the currently selected movies (up to 3).
+// With history ON the movies are recorded in the profile (and persisted);
+// with history OFF they are used for this one request only and never recorded.
 function addMovies() {
+    const picked = [];
     const added = [];
     const duplicates = [];
     const notFound = [];
+    const pickedIds = new Set();
 
     for (let i = 1; i <= MOVIE_FIELD_COUNT; i++) {
         const typedText = document.getElementById(`movie-input-${i}`).value;
@@ -396,29 +409,43 @@ function addMovies() {
             continue;
         }
 
-        if (watchedIds().has(movie.id)) {
+        if (watchedIds().has(movie.id) || pickedIds.has(movie.id)) {
             duplicates.push(movie.title);
         } else {
-            watchedMovies.push(movie);
+            pickedIds.add(movie.id);
+            picked.push(movie);
             added.push(movie.title);
         }
     }
 
-    if (added.length > 0) {
-        // Persist (only meaningful when history is enabled) and recalc from the top
-        saveHistoryIfEnabled();
+    if (picked.length > 0) {
         batchStart = 0;
-        recalculate();
+        if (historyEnabled) {
+            // History ON: record the picks, persist, recalc from the profile
+            watchedMovies.push(...picked);
+            saveHistoryIfEnabled();
+            recalculate();
+            if (comparisonMode === 'current') runComparison();
+            setStatus(
+                `Added "${added.join('", "')}" to your profile. Profile updated, recommendations recalculated automatically.`
+            );
+        } else {
+            // History OFF: one-off request — use the picks for this run only,
+            // do not touch the profile and do not save anything.
+            recalculate(picked);
+            setStatus(
+                `History is OFF — recommended from "${added.join('", "')}" only; nothing was added to your profile. ` +
+                `Turn history ON to start recording.`
+            );
+        }
         renderAll();
-        if (comparisonMode === 'current') runComparison();
-        setStatus(
-            `Added "${added.join('", "')}" to your profile. Profile updated, recommendations recalculated automatically.`
-        );
     } else {
         renderAll();
         let message;
         if (duplicates.length > 0) {
-            message = `"${duplicates.join('", "')}" already in profile. Select something new.`;
+            message = historyEnabled
+                ? `"${duplicates.join('", "')}" already in profile. Select something new.`
+                : `"${duplicates.join('", "')}" selected more than once in this request.`;
         } else if (notFound.length > 0) {
             message = `No film named "${notFound.join('", "')}" found. Pick one from the suggestions.`;
         } else {
@@ -430,8 +457,10 @@ function addMovies() {
 
 // Advance the recommendation window by 5, showing 6-10, 11-15, etc.
 function showNextRecommendations() {
-    if (watchedMovies.length === 0) {
-        setStatus('Add movies to your profile before requesting recommendations.');
+    if (rankedMovies.length === 0) {
+        setStatus(historyEnabled
+            ? 'Add movies to your profile before requesting recommendations.'
+            : 'Pick a movie and click "Give a Recommendation" first.');
         return;
     }
 
@@ -527,9 +556,14 @@ function onHistoryToggle() {
         renderAll();
         setStatus(`History enabled — ${restored} saved movie(s) restored and used for analysis.`);
     } else {
-        // Disable: keep the in-session list, but stop saving and ignore stored data
+        // Disable: ignore the saved history in recommendations and record
+        // nothing new. The in-session profile is cleared (localStorage is
+        // kept, so switching history ON restores it later).
+        watchedMovies = [];
+        rankedMovies = [];
+        batchStart = 0;
         renderAll();
-        setStatus('History disabled — new movies are not saved and saved history is not used.');
+        setStatus('History disabled — saved history is not used for recommendations and new picks are not recorded.');
     }
     if (comparisonMode === 'current') runComparison();
     updateChip();
