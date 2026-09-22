@@ -9,18 +9,56 @@
 <body>
     <div class="container">
         <h1>Content-Based Movie Recommender</h1>
-        <p>Select a movie you like, and we'll find similar ones for you!</p>
-        
-        <div class="controls">
-            <select id="movie-select">
-                <option value="" disabled selected>Select a movie</option>
-            </select>
-            <button id="recommend-btn" onclick="getRecommendations()">Get Recommendations</button>
-        </div>
-        
-        <div id="result-box">
-            <p id="result">Please wait, loading data...</p>
-        </div>
+        <p class="subtitle">
+            Pick up to 3 movies you like to build your user profile. Keep adding titles
+            any time — recommendations are recalculated automatically using cosine similarity.
+        </p>
+
+        <section class="card">
+            <h2>1 · Build your profile</h2>
+            <div class="select-row">
+                <div class="select-group">
+                    <label for="movie-select-1">Movie 1</label>
+                    <select id="movie-select-1"></select>
+                </div>
+                <div class="select-group">
+                    <label for="movie-select-2">Movie 2</label>
+                    <select id="movie-select-2"></select>
+                </div>
+                <div class="select-group">
+                    <label for="movie-select-3">Movie 3</label>
+                    <select id="movie-select-3"></select>
+                </div>
+            </div>
+            <div class="button-row">
+                <button id="add-btn">Add to Profile</button>
+                <button id="refresh-btn" class="btn-secondary">Show Next Top-5</button>
+                <button id="reset-btn" class="btn-danger">Reset</button>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>2 · History</h2>
+            <div class="history-row">
+                <label class="toggle">
+                    <input type="checkbox" id="history-toggle" checked>
+                    <span>Save history across sessions</span>
+                </label>
+                <span id="history-chip" class="chip chip-off">History OFF</span>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>3 · Your profile</h2>
+            <p id="metrics" class="metrics">Profile: 0 movies</p>
+            <ul id="watched-list"></ul>
+        </section>
+
+        <section class="card" id="result-box">
+            <h2>4 · Recommendations</h2>
+            <ol id="result"></ol>
+            <p id="status" class="status">Loading data...</p>
+        </section>
     </div>
 
     <script src="data.js"></script>
